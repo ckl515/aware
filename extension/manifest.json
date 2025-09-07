@@ -1,0 +1,23 @@
+{
+    "manifest_version": 3,
+    "name": "AWARE - Automated Web Accessibility Review Engine",
+    "version": "1.0",
+    "description": "A dev tool to assess web accessibility",
+    "icons": {},
+    "background": {
+        "service_worker": "service-worker.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content-script.js"]
+        }
+    ],
+    "side_panel": {
+        "default_path": "dist/index.html"
+    },
+    "permissions": ["sidePanel", "scripting"],
+    "host_permissions": [
+        "<all_urls>"
+    ]
+}

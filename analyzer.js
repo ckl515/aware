@@ -1,14 +1,37 @@
-// Updated analyzer.js for browser extension with source code integration
-
-// Load axe-core dynamically
 const axeScript = document.createElement("script");
 axeScript.src = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js";
+
+let axeLoaded = false;
+axeScript.onload = () => {
+    axeLoaded = true;
+    console.log('Axe-core loaded successfully');
+};
+document.head.appendChild(axeScript);
 
 window.analyzeAccessibility = async function() {
     try {
         console.log('Starting accessibility analysis...');
         
-        // Create results container if it doesn't exist
+        if (!axeLoaded || typeof axe === 'undefined') {
+            console.log('Waiting for axe-core to load...');
+            
+            let attempts = 0;
+            while ((!axeLoaded || typeof axe === 'undefined') && attempts < 50) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (typeof axe === 'undefined') {
+                throw new Error('Axe-core failed to load');
+            }
+        }
+
+        if (typeof axe === 'undefined') {
+            console.error('Axe-core not loaded. Loading now...');
+            alert('Axe-core is still loading. Please wait a moment and try again.');
+            return;
+        }
+        
         let resultsDiv = document.getElementById('accessibility-results');
         if (!resultsDiv) {
             resultsDiv = document.createElement('div');
@@ -21,12 +44,28 @@ window.analyzeAccessibility = async function() {
         
         resultsDiv.innerHTML = 'Analyzing...';
         
-        const results = await axe.run(document);
-        const filtered = results.violations.filter(v => v.id !== 'image-alt');
+        console.log('About to run axe.run...');
         
-        // Display violations
+        const results = await axe.run(document);
+        
+        console.log('Raw axe results:', results);
+        console.log('Total violations from axe:', results.violations.length);
+        console.log('All violation IDs from axe:', results.violations.map(v => v.id));
+        
+        const filtered = results.violations; 
+        
+        console.log('Filtered violations:', filtered.length);
+        console.log('Filtered violation IDs:', filtered.map(v => v.id));
+        
+        console.log('Axe results:', results);
+        console.log('Found violations:', filtered);
+        
+        const imageAltViolations = filtered.filter(v => v.id === 'image-alt');
+        console.log('Image-alt violations found:', imageAltViolations);
+        
         resultsDiv.innerHTML = `
             <h2>Found ${filtered.length} accessibility violations:</h2>
+            <p>Image-alt violations: ${imageAltViolations.length}</p>
             ${filtered.map(v => `
                 <div style="margin-bottom: 15px;">
                     <strong>${v.id}</strong> (${v.impact} impact)<br>
@@ -37,7 +76,6 @@ window.analyzeAccessibility = async function() {
             `).join('')}
         `;
 
-        // Send to backend
         const payload = {
             violations: filtered.map((violation) => ({
                 id: violation.id,
@@ -53,6 +91,8 @@ window.analyzeAccessibility = async function() {
             url: window.location.href,
             timestamp: new Date().toISOString()
         };
+
+        console.log('Sending payload to backend:', payload);
 
         // Send to FastAPI backend
         const response = await fetch("http://localhost:5500/suggest-fixes", {
@@ -80,8 +120,6 @@ window.analyzeAccessibility = async function() {
                 </div>
             `).join('')}
         `;
-
-        // Convert suggestions to format expected by highlightViolations
         const violationsForHighlighting = filtered.map(violation => {
             const matchingSuggestion = suggestions.find(s => s.violationId === violation.id);
             return {
@@ -101,9 +139,7 @@ window.analyzeAccessibility = async function() {
     }
 };
 
-// Enhanced highlighting function with AI suggestions
 function highlightViolations(suggestions) {
-    // Remove existing highlights
     document.querySelectorAll('[data-axe-highlighted]').forEach(el => {
         el.style.outline = '';
         el.removeAttribute('data-axe-highlighted');
@@ -141,15 +177,12 @@ function highlightViolations(suggestions) {
     console.log(`Highlighted ${suggestions.length} accessibility violations`);
 }
 
-// Modal to show full AI suggestions
 function showSuggestionModal(suggestion) {
-    // Remove existing modal
     const existingModal = document.getElementById('axe-suggestion-modal');
     if (existingModal) {
         existingModal.remove();
     }
     
-    // Create modal
     const modal = document.createElement('div');
     modal.id = 'axe-suggestion-modal';
     modal.style.cssText = `
@@ -274,12 +307,3 @@ document.head.appendChild(axeScript);
 // Export for testing in console
 console.log('Accessibility analyzer loaded. Use analyzeAccessibility() to run analysis.');
 console.log('Use clearAccessibilityHighlights() to clear highlights.');
-
-/* 
-TESTING COMMANDS FOR BROWSER CONSOLE:
-// Run analysis
-analyzeAccessibility().then(results => console.log(results));
-
-// Clear highlights
-clearAccessibilityHighlights();
-*/

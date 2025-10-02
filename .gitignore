@@ -7,3 +7,6 @@ venv
 #for testing
 badWebsite.html
 payload.json
+testImageAlt.html
+simpleTest.html
+testRealImages.html

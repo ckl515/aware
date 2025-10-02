@@ -12,6 +12,7 @@ import uuid
 from models import *
 from settings import GEMINI_CONFIG, MODEL
 from dotenv import load_dotenv
+from imageCaptioning import generate_caption, extract_image_src_from_html
 
 load_dotenv()
 
@@ -54,6 +55,14 @@ async def suggest_fixes(request: AnalysisRequest):
         }
         
         logger.info(f"Created session {session_id} with {len(request.violations)} violations")
+        
+        # Debug: Log violation IDs
+        violation_ids = [v.id for v in request.violations]
+        logger.info(f"Violation IDs received: {violation_ids}")
+        
+        # Check for image-alt violations specifically
+        image_alt_violations = [v for v in request.violations if v.id == "image-alt"]
+        logger.info(f"Image-alt violations found: {len(image_alt_violations)}")
         
         if vscode_connections:
             source_request = {
@@ -161,6 +170,95 @@ async def websocket_endpoint(websocket: WebSocket):
 async def generate_suggestions(violations, source_code = None):
     """
     Generate AI suggestions using Gemini API (single call for all violations)
+    Special handling for image-alt violations using image captioning model
+    """
+    try:
+        logger.info(f"Processing {len(violations)} violations in generate_suggestions")
+        
+        suggestions = []
+        regular_violations = []
+        
+        # Process each violation
+        for violation in violations:
+            logger.info(f"Processing violation: {violation.id}")
+            
+            if violation.id == "image-alt":
+                logger.info(f"Found image-alt violation with {len(violation.nodes)} nodes")
+                # Handle image alt text violations with image captioning
+                for node in violation.nodes:
+                    try:
+                        # Extract image src from the HTML
+                        img_src = extract_image_src_from_html(node.html)
+                        
+                        if img_src:
+                            # Get the base URL from source code or use a default
+                            base_url = None
+                            if source_code and source_code.get("url"):
+                                base_url = source_code.get("url")
+                            
+                            # Generate caption for the image
+                            caption = generate_caption(img_src, base_url)
+                            
+                            # Determine technology context for code snippet
+                            tech_context = get_tech_context(source_code)
+                            
+                            # Generate appropriate code snippet
+                            if "react" in tech_context.lower() or "jsx" in tech_context.lower():
+                                code_snippet = f'<img src="{img_src}" alt="{caption}" />'
+                            else:
+                                code_snippet = f'<img src="{img_src}" alt="{caption}">'
+                            
+                            suggestions.append({
+                                "violationId": violation.id,
+                                "fixDescription": f"Add descriptive alt text to image: '{caption}'",
+                                "codeSnippet": code_snippet
+                            })
+                        else:
+                            # Fallback if we can't extract image src
+                            suggestions.append({
+                                "violationId": violation.id,
+                                "fixDescription": "Add descriptive alt text to image",
+                                "codeSnippet": '<img src="..." alt="Describe the image content here">'
+                            })
+                    except Exception as e:
+                        logger.error(f"Error processing image-alt violation: {e}")
+                        suggestions.append({
+                            "violationId": violation.id,
+                            "fixDescription": "Add descriptive alt text to image",
+                            "codeSnippet": '<img src="..." alt="Describe the image content here">'
+                        })
+            else:
+                regular_violations.append(violation)
+        
+        if regular_violations:
+            regular_suggestions = await generate_regular_suggestions(regular_violations, source_code)
+            if isinstance(regular_suggestions, dict) and "suggestions" in regular_suggestions:
+                suggestions.extend(regular_suggestions["suggestions"])
+            
+        return {"suggestions": suggestions}
+        
+    except Exception as e:
+        logger.error(f"Error in generate_suggestions: {e}")
+        return {"error": f"An error occurred: {e}"}
+
+def get_tech_context(source_code):
+    """Determine the technology context from source code"""
+    if source_code and source_code.get("content"):
+        content = source_code.get('content', '').lower()
+        if 'jsx' in content or 'react' in content or 'usestate' in content or 'useeffect' in content:
+            return "Return React/JSX code snippets."
+        elif 'vue' in content or '@click' in content or 'v-if' in content:
+            return "Return Vue.js code snippets."
+        elif 'angular' in content or 'component' in content and 'typescript' in source_code.get('filePath', ''):
+            return "Return Angular TypeScript code snippets."
+        else:
+            return "Return vanilla HTML code snippets."
+    else:
+        return "Return vanilla HTML code snippets."
+
+async def generate_regular_suggestions(violations, source_code = None):
+    """
+    Generate AI suggestions for non-image-alt violations using Gemini API
     """
     try:
         context = "You are an accessibility expert who will provide suggestions to developers to improve a website's accessibility.\n\n"
@@ -185,19 +283,7 @@ Affected Elements:
             for node in violation.nodes:
                 violations_text += f"- Target: {node.target}\n- HTML: {node.html}\n\n"
         
-        tech_context = ""
-        if source_code and source_code.get("content"):
-            content = source_code.get('content', '').lower()
-            if 'jsx' in content or 'react' in content or 'usestate' in content or 'useeffect' in content:
-                tech_context = "Return React/JSX code snippets."
-            elif 'vue' in content or '@click' in content or 'v-if' in content:
-                tech_context = "Return Vue.js code snippets."
-            elif 'angular' in content or 'component' in content and 'typescript' in source_code.get('filePath', ''):
-                tech_context = "Return Angular TypeScript code snippets."
-            else:
-                tech_context = "Return vanilla HTML code snippets."
-        else:
-            tech_context = "Return vanilla HTML code snippets."
+        tech_context = get_tech_context(source_code)
 
         prompt = context + violations_text + f"""
 For each violation above, provide ONLY:
@@ -241,10 +327,10 @@ Return as JSON with this exact structure:
         return json.loads(response.text.strip())
         
     except Exception as e:
-        print(f"Gemini call failed: {e}")
+        logger.error(f"Gemini call failed: {e}")
         if 'response' in locals() and hasattr(response, 'text'):
-            print(f"Failed response text: {response.text}")
-        return {"error": f"An error occurred: {e}"}
+            logger.error(f"Failed response text: {response.text}")
+        return {"suggestions": []}
 
 @app.get("/health")
 async def health_check():

@@ -32,7 +32,7 @@ def generate_caption(image_path_or_url, base_url=None):
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            response = requests.get(image_path_or_url, timeout=15, headers=headers, verify=False)
+            response = requests.get(image_path_or_url, timeout=15, headers=headers)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content)).convert("RGB")
             
@@ -41,7 +41,7 @@ def generate_caption(image_path_or_url, base_url=None):
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            response = requests.get(full_url, timeout=15, headers=headers, verify=False)
+            response = requests.get(full_url, timeout=15, headers=headers)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content)).convert("RGB")
             
@@ -51,7 +51,7 @@ def generate_caption(image_path_or_url, base_url=None):
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
-            response = requests.get(full_url, timeout=15, headers=headers, verify=False)
+            response = requests.get(full_url, timeout=15, headers=headers)
             response.raise_for_status()
             image = Image.open(BytesIO(response.content)).convert("RGB")
             

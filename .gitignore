@@ -1,3 +1,29 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+extension/dist
+extension/dist-ssr
+extension/content-script.js
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
 __pycache__/
 .vscode
 .venv
@@ -10,3 +36,8 @@ payload.json
 testImageAlt.html
 simpleTest.html
 testRealImages.html
+test_format.py 
+test_vscode.py
+badWebsiteReact.html
+test_suggest_fixes.py
+badReactTest.html

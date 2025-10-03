@@ -19,11 +19,11 @@ function Button({
 }: Props) {
   return (
     <button
-      className={`${colour} transition-all duration-100 ${hoverColour} p-2 pl-3 pr-3 text-sm rounded-sm flex flex-row gap-2 items-center cursor-pointer`}
+      className={`${colour} transition-all duration-200 ${hoverColour} py-3 px-4 text-sm rounded-lg flex flex-row gap-2 items-center justify-center cursor-pointer w-full font-semibold shadow-sm hover:shadow-md`}
       onClick={onClick}
     >
       {icon}
-      <p className={`${textColour} font-bold`}>{text}</p>
+      <p className={`${textColour}`}>{text}</p>
     </button>
   );
 }

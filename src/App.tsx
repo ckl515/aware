@@ -234,6 +234,7 @@ return (
 function App() {
   const [axeResults, setAxeResults] = useState<AxeResults | null>(null);
   const [testMode, setTestMode] = useState(false);
+  const [welcomeMode, setWelcomeMode] = useState(true);
 
   useEffect(() => {
     const listener = (message: any) => {
@@ -292,8 +293,56 @@ function App() {
     );
   }
 
+  // Welcome mode to show instructions
+  if (welcomeMode) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full p-6 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">Welcome to Aware</h1>
+            <div className="w-16 h-1 bg-blue-500 mx-auto rounded"></div>
+          </div>
+          
+          <div className="space-y-4 mb-8">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">1</div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Run Test</h3>
+                <p className="text-sm text-gray-600">Analyze the current webpage for accessibility issues and violations.</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold">2</div>
+              <div>
+                <h3 className="font-semibold text-gray-800">Test Mode</h3>
+                <p className="text-sm text-gray-600">Practice with a demo page that contains common accessibility violations.</p>
+              </div>
+            </div>
+            
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-blue-800 mb-2">💡 Pro Tip</h4>
+              <p className="text-sm text-blue-700">Click on any violation card to highlight the problematic element on the page!</p>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => setWelcomeMode(false)}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200"
+          >
+            Get Started
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <FrontPage onRunAxe={handleRunAxe} onTestMode={() => setTestMode(true)} />
+    <FrontPage 
+      onRunAxe={handleRunAxe} 
+      onTestMode={() => setTestMode(true)} 
+      onWelcome={() => setWelcomeMode(true)}
+    />
   );
 }
 

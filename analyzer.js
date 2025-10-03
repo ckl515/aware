@@ -1,6 +1,10 @@
 const axeScript = document.createElement("script");
 axeScript.src = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.8.2/axe.min.js";
 
+const jsPDFScript = document.createElement("script");
+jsPDFScript.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+document.head.appendChild(jsPDFScript);
+
 let axeLoaded = false;
 axeScript.onload = () => {
     axeLoaded = true;
@@ -75,6 +79,33 @@ window.analyzeAccessibility = async function() {
                 </div>
             `).join('')}
         `;
+        const exportButton = document.createElement("button");
+        exportButton.textContent = "Export Report as PDF";
+        exportButton.style.cssText = `
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        `;
+        
+        exportButton.onclick = async () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+        
+            doc.setFontSize(12);
+            doc.text(`Accessibility Report - ${new Date().toLocaleString()}`, 10, 10);
+        
+            const text = resultsDiv.innerText;
+            const lines = doc.splitTextToSize(text, 180); // wrap lines to fit
+            doc.text(lines, 10, 20);
+        
+            doc.save("accessibility-report.pdf");
+        };
+        
+        resultsDiv.appendChild(exportButton);
 
         const payload = {
             violations: filtered.map((violation) => ({

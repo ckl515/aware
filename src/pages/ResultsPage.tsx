@@ -47,9 +47,9 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
     
     setBulkRequestMade(true);
     
-    // Mark all violations as loading
+    // Mark all violations as loading using sorted violations
     const allKeys = new Set<string>();
-    axeResults.violations.forEach(violation => {
+    sortedViolations.forEach(violation => {
       violation.nodes.forEach(node => {
         const suggestionKey = `${violation.id}-${node.target}`;
         allKeys.add(suggestionKey);
@@ -66,7 +66,7 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          violations: axeResults.violations.map(v => ({
+          violations: sortedViolations.map(v => ({
             id: v.id,
             description: v.description,
             impact: v.impact,
@@ -98,8 +98,8 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
         // Create a tracking system for suggestions per violation type
         const suggestionCounters = new Map<string, number>();
         
-        // Map suggestions back to violations
-        axeResults.violations.forEach(violation => {
+        // Map suggestions back to violations using sorted violations
+        sortedViolations.forEach(violation => {
           // Initialize counter for this violation type
           if (!suggestionCounters.has(violation.id)) {
             suggestionCounters.set(violation.id, 0);
@@ -193,6 +193,21 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
       0
     ) ?? 0;
 
+  // Define severity order (highest to lowest)
+  const severityOrder = {
+    'critical': 0,
+    'serious': 1,
+    'moderate': 2,
+    'minor': 3
+  } as const;
+
+  // Sort violations by severity
+  const sortedViolations = axeResults?.violations.slice().sort((a, b) => {
+    const aSeverity = severityOrder[a.impact as keyof typeof severityOrder] ?? 999;
+    const bSeverity = severityOrder[b.impact as keyof typeof severityOrder] ?? 999;
+    return aSeverity - bSeverity;
+  }) || [];
+
   return (
     <div className="flex justify-center items-center mt-10">
       <div className="flex flex-col gap-10 justify-items-center-safe justify-center min-w-xs w-9/10 max-w-lg">
@@ -247,7 +262,7 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
           </div>
         </div>
         <div className="overflow-auto flex flex-col gap-2 pb-5">
-          {axeResults?.violations.map((violation) => {
+          {sortedViolations.map((violation) => {
             return violation.nodes.map((node, index) => {
               const suggestionKey = `${violation.id}-${node.target}`;
               const suggestion = aiSuggestions.get(suggestionKey);
@@ -260,6 +275,7 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
                   description={violation.description}
                   helpUrl={violation.helpUrl}
                   nodeViolation={node}
+                  impact={violation.impact}
                   llmOutput={suggestion || (isLoading ? "Loading AI suggestion..." : "Click 'Get AI Suggestions' to analyze with source code")}
                 />
               );

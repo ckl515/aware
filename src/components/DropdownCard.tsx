@@ -1,4 +1,4 @@
-import type { NodeResult } from "axe-core";
+import type { NodeResult, ImpactValue } from "axe-core";
 import { useState, type ReactNode } from "react";
 
 interface Props {
@@ -6,6 +6,7 @@ interface Props {
   description: string;
   helpUrl: string;
   nodeViolation: NodeResult;
+  impact?: ImpactValue;
   llmOutput: ReactNode;
 }
 
@@ -29,6 +30,7 @@ function DropdownCard({
   heading,
   description,
   helpUrl,
+  impact,
   // nodeViolation,
   llmOutput,
 }: Props) {
@@ -41,9 +43,52 @@ function DropdownCard({
   //   }
   // }, [isOpen]);
 
+  // Get severity color and badge text
+  const getSeverityStyles = (impact: ImpactValue | undefined) => {
+    switch (impact) {
+      case 'critical':
+        return {
+          badgeColor: 'bg-red-600',
+          borderColor: 'border-red-300',
+          textColor: 'text-red-700',
+          badge: 'CRITICAL'
+        };
+      case 'serious':
+        return {
+          badgeColor: 'bg-red-500',
+          borderColor: 'border-red-200', 
+          textColor: 'text-red-600',
+          badge: 'SERIOUS'
+        };
+      case 'moderate':
+        return {
+          badgeColor: 'bg-yellow-500',
+          borderColor: 'border-yellow-200',
+          textColor: 'text-yellow-700',
+          badge: 'MODERATE'
+        };
+      case 'minor':
+        return {
+          badgeColor: 'bg-green-500',
+          borderColor: 'border-green-200',
+          textColor: 'text-green-700', 
+          badge: 'MINOR'
+        };
+      default:
+        return {
+          badgeColor: 'bg-gray-500',
+          borderColor: 'border-gray-300',
+          textColor: 'text-gray-600',
+          badge: 'UNKNOWN'
+        };
+    }
+  };
+
+  const severityStyles = getSeverityStyles(impact);
+
   return (
     <button
-      className={`bg-white border rounded-md border-gray-400 p-3 pr-8 flex gap-2 select-none transition-all hover:shadow-lg ${
+      className={`bg-white border rounded-md ${severityStyles.borderColor} p-3 pr-8 flex gap-2 select-none transition-all hover:shadow-lg ${
         isOpen ? "shadow-md mt-2 mb-2" : ""
       }`}
       onClick={() => setIsOpen(!isOpen)}
@@ -57,7 +102,12 @@ function DropdownCard({
       </div>
 
       <div className="text-xs text-left select-none w-full">
-        <h2 className="font-medium text-gray-950">{heading}</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-medium text-gray-950">{heading}</h2>
+          <span className={`px-2 py-1 rounded-full text-xs font-bold text-white ${severityStyles.badgeColor}`}>
+            {severityStyles.badge}
+          </span>
+        </div>
         <p className={`text-gray-600 pt-1 pb-3 ${isOpen ? "" : "hidden"}`}>
           <>
             {description}

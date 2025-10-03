@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Accessibility Engine Backend")
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # in production, specify exact origins

@@ -384,16 +384,27 @@ async def generate_regular_suggestions(violations, source_code = None):
         context += "ACCESSIBILITY VIOLATIONS:\n"
         
         violations_text = ""
+        element_count = 0
+        
         for violation in violations:
             violations_text += f"""
-Violation ID: {violation.id}
+=====================================
+VIOLATION: {violation.id}
 Description: {violation.description}
 Impact: {violation.impact}
 Help: {violation.help}
-Affected Elements:
+
+ELEMENTS TO FIX:
 """
-            for node in violation.nodes:
-                violations_text += f"- Target: {node.target}\n- HTML: {node.html}\n\n"
+            for i, node in enumerate(violation.nodes, 1):
+                element_count += 1
+                violations_text += f"""
+[ELEMENT #{element_count}] - CREATE SPECIFIC FIX FOR THIS ELEMENT:
+- Selector: {node.target}
+- Current HTML: {node.html}
+⬆️ Fix Element #{element_count} using its exact content above ⬆️
+{'-'*50}
+"""
         
         tech_context = get_tech_context(source_code)
         
@@ -429,15 +440,17 @@ TASK: Analyze the provided source code and violations to generate specific, cont
 CRITICAL REQUIREMENTS:
 1. ANALYZE the actual source code provided above AND the specific HTML elements in violations
 2. MODIFY the EXACT HTML code shown in the violation nodes, don't create new generic code
-3. PRESERVE existing variable names, class names, IDs, attributes, and structure
+3. PRESERVE existing variable names, class names, IDs, attributes, text content, and structure
 4. TAKE the actual HTML from violation nodes and APPLY fixes directly to that HTML
 5. PROVIDE the MODIFIED version of the existing HTML, not new code
+6. PRESERVE ALL TEXT CONTENT - do not change button text, headings, or any visible text
 
 VIOLATION-SPECIFIC CODE MODIFICATION:
-- Find the EXACT HTML element from the violation node
+- Find the EXACT HTML element from the violation node (look at the "HTML:" field)
 - Apply the accessibility fix to THAT specific element
-- Keep all existing attributes, classes, styles unless they're part of the fix
-- Return the SAME element but with the accessibility issue resolved
+- Keep all existing attributes, classes, styles, and TEXT CONTENT unless they conflict with the fix
+- Return the SAME element with SAME text content but with the accessibility issue resolved
+- If fixing a button that says "About", keep it saying "About" - don't change it to "Home"
 
 EXAMPLE PROCESS:
 If violation node shows: <div style="color: #ccc;">Low contrast text</div>
@@ -446,6 +459,9 @@ Then return: <div style="color: #333333;">Low contrast text</div>
 If violation node shows: <img src="photo.jpg" class="gallery-image">
 Then return: <img src="photo.jpg" class="gallery-image" alt="Description based on image content">
 
+If violation node shows: <button class="nav-button">About</button>
+Then return: <button class="nav-button" style="color: #000000;">About</button>
+
 If violation node shows: <button onClick={{handleClick}}>🛒</button>
 Then return: <button onClick={{handleClick}} aria-label="Add to cart">🛒</button>
 
@@ -453,12 +469,16 @@ RESPONSE FORMAT - Return ONLY valid JSON with this EXACT structure:
 {{
   "suggestions": [
     {{
-      "violationId": "region",
+      "violationId": "violation-type",
       "fixDescription": "Brief explanation of what needs to be fixed",
       "codeSnippet": "Complete HTML/code that fixes the issue"
     }}
   ]
 }}
+
+IMPORTANT: Create ONE suggestion for EACH element shown in the violations above.
+If there are 3 button elements with the same violation, create 3 separate suggestions.
+Each suggestion should fix the exact HTML element provided, preserving its unique content.
 
 SPECIFIC FIX GUIDELINES:
 - color-contrast violations: Take existing style attributes and modify color values to meet contrast requirements

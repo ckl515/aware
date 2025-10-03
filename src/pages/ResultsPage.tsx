@@ -95,11 +95,27 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
         const suggestionsArray = data.suggestions?.suggestions || data.suggestions || [];
         const newSuggestions = new Map<string, string>();
         
+        // Create a tracking system for suggestions per violation type
+        const suggestionCounters = new Map<string, number>();
+        
         // Map suggestions back to violations
         axeResults.violations.forEach(violation => {
+          // Initialize counter for this violation type
+          if (!suggestionCounters.has(violation.id)) {
+            suggestionCounters.set(violation.id, 0);
+          }
+          
           violation.nodes.forEach(node => {
             const suggestionKey = `${violation.id}-${node.target}`;
-            const matchingSuggestion = suggestionsArray.find((s: any) => s.violationId === violation.id);
+            
+            // Get the current counter for this violation type
+            const currentIndex = suggestionCounters.get(violation.id) || 0;
+            
+            // Find all suggestions for this violation type
+            const matchingSuggestions = suggestionsArray.filter((s: any) => s.violationId === violation.id);
+            
+            // Get the suggestion at the current index, or the first one if we run out
+            const matchingSuggestion = matchingSuggestions[currentIndex] || matchingSuggestions[0];
             
             if (matchingSuggestion) {
               const description = matchingSuggestion.aiSuggestion || matchingSuggestion.fixDescription || 'AI suggestion available';
@@ -110,6 +126,9 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
                 description;
                 
               newSuggestions.set(suggestionKey, suggestion);
+              
+              // Increment the counter for this violation type
+              suggestionCounters.set(violation.id, currentIndex + 1);
             } else {
               newSuggestions.set(suggestionKey, 'AI suggestion not available');
             }

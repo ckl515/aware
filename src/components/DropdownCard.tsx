@@ -10,32 +10,52 @@ interface Props {
   llmOutput: ReactNode;
 }
 
-// function highlightViolation(tabId: number, selector: string) {
-//   return new Promise((resolve, reject) => {
-//     chrome.tabs.sendMessage(
-//       tabId,
-//       { type: "highlight-violation", selector },
-//       (response) => {
-//         if (chrome.runtime.lastError) {
-//           reject(chrome.runtime.lastError);
-//         } else {
-//           resolve(response);
-//         }
-//       }
-//     );
-//   });
-// }
+function highlightViolation(selector: string) {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(
+          tabs[0].id,
+          { type: "highlight-violation", selector },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              reject(chrome.runtime.lastError);
+            } else {
+              resolve(response);
+            }
+          }
+        );
+      } else {
+        reject(new Error("No active tab found"));
+      }
+    });
+  });
+}
 
 function DropdownCard({
   heading,
   description,
   helpUrl,
   impact,
-  // nodeViolation,
+  nodeViolation,
   llmOutput,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
-  // const selector = nodeViolation.target;
+  
+  const handleCardClick = () => {
+    setIsOpen(!isOpen);
+    
+    // Highlight the element when card is opened
+    if (!isOpen && nodeViolation.target && nodeViolation.target.length > 0) {
+      const selector = typeof nodeViolation.target[0] === 'string' 
+        ? nodeViolation.target[0] 
+        : nodeViolation.target[0].toString();
+      
+      highlightViolation(selector).catch(error => {
+        console.error('Failed to highlight element:', error);
+      });
+    }
+  };
 
   // useEffect(() => {
   //   if (isOpen) {
@@ -91,7 +111,7 @@ function DropdownCard({
       className={`bg-white border rounded-md ${severityStyles.borderColor} p-3 pr-8 flex gap-2 select-none transition-all hover:shadow-lg ${
         isOpen ? "shadow-md mt-2 mb-2" : ""
       }`}
-      onClick={() => setIsOpen(!isOpen)}
+      onClick={handleCardClick}
     >
       <div className="w-4 h-4 flex justify-center">
         <div

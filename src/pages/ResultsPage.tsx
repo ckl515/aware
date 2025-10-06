@@ -17,6 +17,8 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, isTestMode }: Props) => {
   const [loadingSuggestions, setLoadingSuggestions] = useState<Set<string>>(new Set());
   const [bulkRequestMade, setBulkRequestMade] = useState(false);
   const [stopRequested, setStopRequested] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   // Clear suggestions when axeResults change (new test run)
   useEffect(() => {
@@ -24,6 +26,8 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, isTestMode }: Props) => {
     setLoadingSuggestions(new Set());
     setBulkRequestMade(false);
     setStopRequested(false);
+    setIsPdfGenerating(false);
+    setShowSuccess(false);
   }, [axeResults]);
 
   const handleStop = () => {
@@ -58,164 +62,180 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, isTestMode }: Props) => {
     onRunAxe();
   };
 
-  const generatePDFReport = () => {
-    const pdf = new jsPDF();
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 20;
-    const maxWidth = pageWidth - 2 * margin;
-    let yPosition = margin;
+  const generatePDFReport = async () => {
+    setIsPdfGenerating(true);
     
-    // Helper function to add text with word wrapping
-    const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 12) => {
-      pdf.setFontSize(fontSize);
-      const lines = pdf.splitTextToSize(text, maxWidth);
+    try {
+      // Brief delay for user feedback
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Check if we need a new page
-      if (y + (lines.length * fontSize * 0.4) > pageHeight - margin) {
-        pdf.addPage();
-        y = margin;
-      }
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - 2 * margin;
+      let yPosition = margin;
       
-      pdf.text(lines, x, y);
-      return y + (lines.length * fontSize * 0.4) + 5;
-    };
+      // Helper function to add text with word wrapping
+      const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 12) => {
+        pdf.setFontSize(fontSize);
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        
+        // Check if we need a new page
+        if (y + (lines.length * fontSize * 0.4) > pageHeight - margin) {
+          pdf.addPage();
+          y = margin;
+        }
+        
+        pdf.text(lines, x, y);
+        return y + (lines.length * fontSize * 0.4) + 5;
+      };
 
-    // Header with branding
-    pdf.setFillColor(59, 130, 246); // Blue color
-    pdf.rect(0, 0, pageWidth, 30, 'F');
-    
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFontSize(24);
-    pdf.setFont("helvetica", "bold");
-    pdf.text("Accessibility Report", margin, 20);
-    
-    pdf.setTextColor(0, 0, 0); // Reset to black
-    yPosition = 50;
-    
-    // Current date and URL
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "normal");
-    yPosition = addWrappedText(`Generated: ${new Date().toLocaleString()}`, margin, yPosition, maxWidth);
-    yPosition = addWrappedText(`URL: ${window.location.href}`, margin, yPosition, maxWidth);
-    yPosition = addWrappedText(`Tool: Aware Accessibility Extension`, margin, yPosition, maxWidth);
-    yPosition += 15;
-    
-    // Summary box
-    pdf.setFillColor(248, 250, 252); // Light gray background
-    pdf.rect(margin, yPosition - 5, maxWidth, 60, 'F');
-    pdf.setDrawColor(226, 232, 240); // Border color
-    pdf.rect(margin, yPosition - 5, maxWidth, 60, 'S');
-    
-    pdf.setFontSize(16);
-    pdf.setFont("helvetica", "bold");
-    yPosition = addWrappedText("Executive Summary", margin + 10, yPosition + 5, maxWidth - 20, 16);
-    
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "normal");
-    yPosition = addWrappedText(`Total violations found: ${numViolations}`, margin + 10, yPosition, maxWidth - 20);
-    yPosition = addWrappedText(`Unique violation types: ${sortedViolations.length}`, margin + 10, yPosition, maxWidth - 20);
-    
-    // Calculate compliance percentage (this is a rough estimate)
-    const totalChecks = numViolations + 50; // Assume some passing checks
-    const complianceRate = Math.max(0, Math.round(((totalChecks - numViolations) / totalChecks) * 100));
-    yPosition = addWrappedText(`Estimated compliance rate: ${complianceRate}%`, margin + 10, yPosition, maxWidth - 20);
-    
-    yPosition += 20;
-    
-    // Violations by severity
-    const severityCounts = sortedViolations.reduce((acc, violation) => {
-      const impact = violation.impact || 'unknown';
-      acc[impact] = (acc[impact] || 0) + violation.nodes.length;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    pdf.setFontSize(14);
-    pdf.setFont("helvetica", "bold");
-    yPosition = addWrappedText("Violations by Severity", margin, yPosition, maxWidth, 14);
-    
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "normal");
-    
-    // Color-code severity levels
-    const severityColors = {
-      critical: [220, 38, 38],   // Red
-      serious: [249, 115, 22],   // Orange  
-      moderate: [234, 179, 8],   // Yellow
-      minor: [34, 197, 94],      // Green
-      unknown: [107, 114, 128]   // Gray
-    };
-    
-    Object.entries(severityCounts).forEach(([severity, count]) => {
-      const color = severityColors[severity as keyof typeof severityColors] || severityColors.unknown;
-      pdf.setFillColor(color[0], color[1], color[2]);
-      pdf.circle(margin + 5, yPosition + 3, 2, 'F');
-      yPosition = addWrappedText(`${severity.charAt(0).toUpperCase() + severity.slice(1)}: ${count}`, margin + 15, yPosition, maxWidth - 15);
-    });
-    yPosition += 15;
-    
-    // Detailed violations
-    pdf.setFontSize(16);
-    pdf.setFont("helvetica", "bold");
-    yPosition = addWrappedText("Detailed Violations", margin, yPosition, maxWidth, 16);
-    yPosition += 5;
-    
-    sortedViolations.forEach((violation, index) => {
-      // Check if we need a new page
-      if (yPosition > pageHeight - 120) {
-        pdf.addPage();
-        yPosition = margin;
-      }
+      // Header with branding
+      pdf.setFillColor(59, 130, 246); // Blue color
+      pdf.rect(0, 0, pageWidth, 30, 'F');
       
-      // Violation header with severity indicator
-      const severityColor = severityColors[violation.impact as keyof typeof severityColors] || severityColors.unknown;
-      pdf.setFillColor(severityColor[0], severityColor[1], severityColor[2]);
-      pdf.circle(margin + 5, yPosition + 5, 3, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Accessibility Report", margin, 20);
+      
+      pdf.setTextColor(0, 0, 0); // Reset to black
+      yPosition = 50;
+      
+      // Current date and URL
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+      yPosition = addWrappedText(`Generated: ${new Date().toLocaleString()}`, margin, yPosition, maxWidth);
+      yPosition = addWrappedText(`URL: ${window.location.href}`, margin, yPosition, maxWidth);
+      yPosition = addWrappedText(`Tool: Aware Accessibility Extension`, margin, yPosition, maxWidth);
+      yPosition += 15;
+      
+      // Summary box
+      pdf.setFillColor(248, 250, 252); // Light gray background
+      pdf.rect(margin, yPosition - 5, maxWidth, 60, 'F');
+      pdf.setDrawColor(226, 232, 240); // Border color
+      pdf.rect(margin, yPosition - 5, maxWidth, 60, 'S');
+      
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      yPosition = addWrappedText("Executive Summary", margin + 10, yPosition + 5, maxWidth - 20, 16);
+      
+      pdf.setFontSize(12);
+      pdf.setFont("helvetica", "normal");
+      yPosition = addWrappedText(`Total violations found: ${numViolations}`, margin + 10, yPosition, maxWidth - 20);
+      yPosition = addWrappedText(`Unique violation types: ${sortedViolations.length}`, margin + 10, yPosition, maxWidth - 20);
+      
+      // Calculate compliance percentage (this is a rough estimate)
+      const totalChecks = numViolations + 50; // Assume some passing checks
+      const complianceRate = Math.max(0, Math.round(((totalChecks - numViolations) / totalChecks) * 100));
+      yPosition = addWrappedText(`Estimated compliance rate: ${complianceRate}%`, margin + 10, yPosition, maxWidth - 20);
+      
+      yPosition += 20;
+      
+      // Violations by severity
+      const severityCounts = sortedViolations.reduce((acc, violation) => {
+        const impact = violation.impact || 'unknown';
+        acc[impact] = (acc[impact] || 0) + violation.nodes.length;
+        return acc;
+      }, {} as Record<string, number>);
       
       pdf.setFontSize(14);
       pdf.setFont("helvetica", "bold");
-      yPosition = addWrappedText(`${index + 1}. ${violation.help}`, margin + 15, yPosition, maxWidth - 15, 14);
+      yPosition = addWrappedText("Violations by Severity", margin, yPosition, maxWidth, 14);
       
-      pdf.setFontSize(11);
+      pdf.setFontSize(12);
       pdf.setFont("helvetica", "normal");
-      yPosition = addWrappedText(`Severity: ${(violation.impact || 'unknown').charAt(0).toUpperCase() + (violation.impact || 'unknown').slice(1)}`, margin + 15, yPosition, maxWidth - 15);
-      yPosition = addWrappedText(`Rule ID: ${violation.id}`, margin + 15, yPosition, maxWidth - 15);
-      yPosition = addWrappedText(`Elements affected: ${violation.nodes.length}`, margin + 15, yPosition, maxWidth - 15);
-      yPosition = addWrappedText(`Description: ${violation.description}`, margin + 15, yPosition, maxWidth - 15);
       
-      if (violation.helpUrl) {
-        yPosition = addWrappedText(`More info: ${violation.helpUrl}`, margin + 15, yPosition, maxWidth - 15);
-      }
+      // Color-code severity levels
+      const severityColors = {
+        critical: [220, 38, 38],   // Red
+        serious: [249, 115, 22],   // Orange  
+        moderate: [234, 179, 8],   // Yellow
+        minor: [34, 197, 94],      // Green
+        unknown: [107, 114, 128]   // Gray
+      };
       
-      // List affected elements
-      if (violation.nodes.length > 0) {
-        yPosition = addWrappedText("Affected elements:", margin + 15, yPosition, maxWidth - 15);
-        violation.nodes.slice(0, 3).forEach((node) => { // Limit to first 3 elements for readability
-          const selector = Array.isArray(node.target) ? node.target.join(' ') : node.target;
-          yPosition = addWrappedText(`• ${selector}`, margin + 25, yPosition, maxWidth - 25);
-        });
-        
-        if (violation.nodes.length > 3) {
-          yPosition = addWrappedText(`... and ${violation.nodes.length - 3} more elements`, margin + 25, yPosition, maxWidth - 25);
+      Object.entries(severityCounts).forEach(([severity, count]) => {
+        const color = severityColors[severity as keyof typeof severityColors] || severityColors.unknown;
+        pdf.setFillColor(color[0], color[1], color[2]);
+        pdf.circle(margin + 5, yPosition + 3, 2, 'F');
+        yPosition = addWrappedText(`${severity.charAt(0).toUpperCase() + severity.slice(1)}: ${count}`, margin + 15, yPosition, maxWidth - 15);
+      });
+      yPosition += 15;
+      
+      // Detailed violations
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      yPosition = addWrappedText("Detailed Violations", margin, yPosition, maxWidth, 16);
+      yPosition += 5;
+      
+      sortedViolations.forEach((violation, index) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 120) {
+          pdf.addPage();
+          yPosition = margin;
         }
+        
+        // Violation header with severity indicator
+        const severityColor = severityColors[violation.impact as keyof typeof severityColors] || severityColors.unknown;
+        pdf.setFillColor(severityColor[0], severityColor[1], severityColor[2]);
+        pdf.circle(margin + 5, yPosition + 5, 3, 'F');
+        
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        yPosition = addWrappedText(`${index + 1}. ${violation.help}`, margin + 15, yPosition, maxWidth - 15, 14);
+        
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "normal");
+        yPosition = addWrappedText(`Severity: ${(violation.impact || 'unknown').charAt(0).toUpperCase() + (violation.impact || 'unknown').slice(1)}`, margin + 15, yPosition, maxWidth - 15);
+        yPosition = addWrappedText(`Rule ID: ${violation.id}`, margin + 15, yPosition, maxWidth - 15);
+        yPosition = addWrappedText(`Elements affected: ${violation.nodes.length}`, margin + 15, yPosition, maxWidth - 15);
+        yPosition = addWrappedText(`Description: ${violation.description}`, margin + 15, yPosition, maxWidth - 15);
+        
+        if (violation.helpUrl) {
+          yPosition = addWrappedText(`More info: ${violation.helpUrl}`, margin + 15, yPosition, maxWidth - 15);
+        }
+        
+        // List affected elements
+        if (violation.nodes.length > 0) {
+          yPosition = addWrappedText("Affected elements:", margin + 15, yPosition, maxWidth - 15);
+          violation.nodes.slice(0, 3).forEach((node) => { // Limit to first 3 elements for readability
+            const selector = Array.isArray(node.target) ? node.target.join(' ') : node.target;
+            yPosition = addWrappedText(`• ${selector}`, margin + 25, yPosition, maxWidth - 25);
+          });
+          
+          if (violation.nodes.length > 3) {
+            yPosition = addWrappedText(`... and ${violation.nodes.length - 3} more elements`, margin + 25, yPosition, maxWidth - 25);
+          }
+        }
+        
+        yPosition += 10;
+      });
+      
+      // Footer with page numbers
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 40, pageHeight - 10);
+        pdf.text("Generated by Aware Extension", margin, pageHeight - 10);
       }
       
-      yPosition += 10;
-    });
-    
-    // Footer with page numbers
-    const totalPages = pdf.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      pdf.setPage(i);
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "normal");
-      pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 40, pageHeight - 10);
-      pdf.text("Generated by Aware Extension", margin, pageHeight - 10);
+      // Save the PDF
+      const fileName = `accessibility-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+      
+      // Show success notification
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsPdfGenerating(false);
     }
-    
-    // Save the PDF
-    const fileName = `accessibility-report-${new Date().toISOString().split('T')[0]}.pdf`;
-    pdf.save(fileName);
   };
 
   const fetchAllSuggestions = async () => {
@@ -394,84 +414,167 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, isTestMode }: Props) => {
   }) || [];
 
   return (
-    <div className="flex justify-center items-center mt-10">
-      <div className="flex flex-col gap-10 justify-items-center-safe justify-center min-w-xs w-9/10 max-w-lg">
-        <div className="flex flex-row gap-5">
+    <div className="flex justify-center items-center mt-10 min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-24 h-24 bg-blue-200/20 rounded-full animate-float" />
+        <div className="absolute top-40 right-16 w-32 h-32 bg-purple-200/20 rounded-full animate-float" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-32 left-20 w-28 h-28 bg-indigo-200/20 rounded-full animate-float" style={{ animationDelay: '2s' }} />
+      </div>
+
+      <div className="flex flex-col gap-8 justify-items-center-safe justify-center min-w-xs w-9/10 max-w-lg relative z-10">
+        {/* Header section with enhanced styling */}
+        <div className="flex flex-row gap-6 animate-fade-in-up">
           <div className="flex-none">
             <Badge number={numViolations} />
           </div>
-          <div className="flex flex-col justify-center gap-3">
-            <h1 className="text-sm select-none">
-              <span className="font-bold">
-                {numViolations} accessibility-related issues
-              </span>
-              {" have been detected within this webpage."}
-            </h1>
-            <div className="flex flex-row gap-2">
-              {onBack && (
-                <Button
-                  colour="bg-gray-600"
-                  hoverColour="hover:bg-gray-500"
-                  text="Back"
-                  textColour="text-white"
-                  onClick={onBack}
-                />
+          <div className="flex flex-col justify-center gap-4">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20 hover-lift transition-all-smooth">
+              <h1 className="text-sm select-none leading-relaxed">
+                <span className="font-bold text-gray-900 text-base">
+                  {numViolations} accessibility-related issues
+                </span>
+                <br />
+                <span className="text-gray-600">
+                  have been detected within this webpage.
+                </span>
+              </h1>
+              
+              {/* Success notification */}
+              {showSuccess && (
+                <div className="mt-4 p-3 bg-green-100 border border-green-300 rounded-lg animate-fade-in-scale">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-green-600 animate-bounce-custom" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                    </svg>
+                    <span className="text-green-800 font-medium text-sm">PDF report generated successfully!</span>
+                  </div>
+                </div>
               )}
-              <Button
-                colour="bg-red-800"
-                hoverColour="hover:bg-red-600"
-                icon={popUpIcon}
-                text={isTestMode ? "Re-run Test Mode" : "Re-run Test"}
-                textColour="text-white"
-                onClick={handleRerun}
-              />
-              <Button
-                colour="bg-blue-600"
-                hoverColour="hover:bg-blue-500"
-                text={bulkRequestMade ? "✓ AI Suggestions Loaded" : "Get AI Suggestions"}
-                textColour="text-white"
-                onClick={fetchAllSuggestions}
-                disabled={bulkRequestMade}
-              />
-              {loadingSuggestions.size > 0 && !stopRequested && (
-                <Button
-                  colour="bg-orange-600"
-                  hoverColour="hover:bg-orange-500"
-                  text="Stop Analysis"
-                  textColour="text-white"
-                  onClick={handleStop}
-                />
-              )}
-              <Button
-                colour="bg-green-600"
-                hoverColour="hover:bg-green-700"
-                text="📄 Generate PDF Report"
-                textColour="text-white"
-                onClick={generatePDFReport}
-              />
             </div>
+            
+            {/* Action buttons with staggered animations */}
+            <div className="grid grid-cols-2 gap-3">
+              {onBack && (
+                <div className="animate-slide-in-right stagger-1">
+                  <Button
+                    colour="bg-gradient-to-r from-slate-600 to-slate-700"
+                    hoverColour="hover:from-slate-700 hover:to-slate-800"
+                    text="Back"
+                    textColour="text-white"
+                    onClick={onBack}
+                    variant="gradient"
+                    size="sm"
+                  />
+                </div>
+              )}
+              
+              <div className={`animate-slide-in-right ${onBack ? 'stagger-2' : 'stagger-1'}`}>
+                <Button
+                  colour="bg-gradient-to-r from-rose-600 to-pink-600"
+                  hoverColour="hover:from-rose-700 hover:to-pink-700"
+                  icon={<span className="animate-spin">{popUpIcon}</span>}
+                  text={isTestMode ? "Re-run Test Mode" : "Re-run Test"}
+                  textColour="text-white"
+                  onClick={handleRerun}
+                  variant="gradient"
+                  size="sm"
+                />
+              </div>
+              
+              <div className={`animate-slide-in-right ${onBack ? 'stagger-3' : 'stagger-2'}`}>
+                <Button
+                  colour="bg-gradient-to-r from-indigo-600 to-purple-600"
+                  hoverColour="hover:from-indigo-700 hover:to-purple-700"
+                  text={bulkRequestMade ? "✓ AI Suggestions Loaded" : "🧠 Get AI Suggestions"}
+                  textColour="text-white"
+                  onClick={fetchAllSuggestions}
+                  disabled={bulkRequestMade}
+                  variant="gradient"
+                  size="sm"
+                />
+              </div>
+              
+              {loadingSuggestions.size > 0 && !stopRequested && (
+                <div className="animate-slide-in-right stagger-4">
+                  <Button
+                    colour="bg-gradient-to-r from-amber-500 to-orange-500"
+                    hoverColour="hover:from-amber-600 hover:to-orange-600"
+                    text="Stop Analysis"
+                    textColour="text-white"
+                    onClick={handleStop}
+                    variant="gradient"
+                    size="sm"
+                  />
+                </div>
+              )}
+              
+              <div className={`animate-slide-in-right ${loadingSuggestions.size > 0 ? 'stagger-5' : 'stagger-4'}`}>
+                <Button
+                  colour="bg-gradient-to-r from-emerald-600 to-green-600"
+                  hoverColour="hover:from-emerald-700 hover:to-green-700"
+                  text={isPdfGenerating ? "Generating..." : "📄 Generate PDF"}
+                  textColour="text-white"
+                  onClick={generatePDFReport}
+                  disabled={isPdfGenerating}
+                  variant="gradient"
+                  size="sm"
+                />
+              </div>
+            </div>
+            
+            {/* Loading indicator for AI suggestions */}
+            {loadingSuggestions.size > 0 && !stopRequested && (
+              <div className="bg-blue-50/80 backdrop-blur-sm rounded-lg p-4 border border-blue-200/50 animate-fade-in-scale">
+                <div className="flex items-center gap-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <span className="text-blue-800 font-medium text-sm">
+                    Analyzing {loadingSuggestions.size} accessibility issues...
+                  </span>
+                </div>
+                <div className="mt-2 bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-1000 animate-pulse"
+                    style={{ width: `${Math.max(10, 100 - (loadingSuggestions.size / (numViolations || 1)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        <div className="overflow-auto flex flex-col gap-2 pb-5">
-          {sortedViolations.map((violation) => {
-            return violation.nodes.map((node, index) => {
+        
+        {/* Violations list with enhanced styling */}
+        <div className="overflow-auto flex flex-col gap-3 pb-8 custom-scrollbar">
+          {sortedViolations.map((violation, violationIndex) => {
+            return violation.nodes.map((node, nodeIndex) => {
               const suggestionKey = `${violation.id}-${node.target}`;
               const suggestion = aiSuggestions.get(suggestionKey);
               const isLoading = loadingSuggestions.has(suggestionKey);
+              const overallIndex = violationIndex * violation.nodes.length + nodeIndex;
 
               return (
                 <DropdownCard
-                  key={`${violation.id}-${index}`}
+                  key={`${violation.id}-${nodeIndex}`}
                   heading={violation.help}
                   description={violation.description}
                   helpUrl={violation.helpUrl}
                   nodeViolation={node}
                   impact={violation.impact}
-                  llmOutput={suggestion || (isLoading ? "Loading AI suggestion..." : "Click 'Get AI Suggestions' to analyze with source code")}
+                  llmOutput={suggestion || (isLoading ? "🔄 Loading AI suggestion..." : "Click 'Get AI Suggestions' to analyze with source code")}
+                  index={overallIndex}
                 />
               );
             });
           })}
+          
+          {/* Empty state with animation */}
+          {sortedViolations.length === 0 && (
+            <div className="text-center py-12 animate-fade-in-scale">
+              <div className="text-6xl mb-4 animate-bounce-custom">🎉</div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No Issues Found!</h3>
+              <p className="text-gray-600">This page appears to be accessible. Great job!</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -10,6 +10,14 @@ interface Props {
   llmOutput: ReactNode;
 }
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).then(() => {
+    // Could add a toast notification here if desired
+  }).catch(err => {
+    console.error('Failed to copy text: ', err);
+  });
+}
+
 function highlightViolation(selector: string) {
   return new Promise((resolve, reject) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -41,6 +49,15 @@ function DropdownCard({
   llmOutput,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  
+  const handleCopyCode = (codeText: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    copyToClipboard(codeText);
+    setCopiedText(codeText);
+    // Reset the copied state after 2 seconds
+    setTimeout(() => setCopiedText(null), 2000);
+  };
   
   const handleCardClick = () => {
     setIsOpen(!isOpen);
@@ -174,8 +191,30 @@ function DropdownCard({
                   if (codeSnippet && codeSnippet !== 'No code snippet provided') {
                     return (
                       <div className="mt-3">
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-semibold text-sky-800">💻 Suggested Code:</span>
+                          <button
+                            onClick={(e) => handleCopyCode(codeSnippet, e)}
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-sky-600 hover:bg-sky-700 text-white rounded transition-colors duration-200"
+                            title="Copy code to clipboard"
+                          >
+                            {copiedText === codeSnippet ? (
+                              <>
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                                </svg>
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z"/>
+                                  <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z"/>
+                                </svg>
+                                Copy
+                              </>
+                            )}
+                          </button>
                         </div>
                         <pre className="bg-gray-100 border border-gray-300 rounded-md p-3 text-sm font-mono overflow-x-auto whitespace-pre-wrap break-all text-gray-800">
                           {codeSnippet}

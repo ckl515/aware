@@ -14,9 +14,9 @@ Follow these steps to build, deploy, and run the Chrome extension and its backen
 
 (Optional but recommended) Create and activate a virtual environment:
 ```bash
-  python -m venv venv
-    source venv/bin/activate      # macOS/Linux
-    venv\Scripts\activate.bat     # Windows
+python -m venv venv
+source venv/bin/activate      # macOS/Linux
+venv\Scripts\activate.bat     # Windows
 ```
 Install Python dependencies:
 

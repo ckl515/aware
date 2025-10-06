@@ -1,0 +1,61 @@
+{
+  "name": "accessibility-source-engine",
+  "displayName": "Accessibility Source Engine",
+  "description": "Provides source code context for accessibility violations detected by browser extension",
+  "version": "0.1.1",
+  "publisher": "accessibility-engine",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ckl515/aware.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "accessibilityEngine.connect",
+        "title": "Connect to Accessibility Engine",
+        "category": "Accessibility Engine"
+      },
+      {
+        "command": "accessibilityEngine.disconnect",
+        "title": "Disconnect from Accessibility Engine",
+        "category": "Accessibility Engine"
+      },
+      {
+        "command": "accessibilityEngine.test",
+        "title": "Test Extension",
+        "category": "Accessibility Engine"
+      }
+    ],
+    "configuration": {
+      "title": "Accessibility Engine",
+      "properties": {
+        "accessibilityEngine.backendUrl": {
+          "type": "string",
+          "default": "ws://localhost:5500/vscode",
+          "description": "Backend WebSocket URL"
+        },
+        "accessibilityEngine.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to backend on startup"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  }
+}

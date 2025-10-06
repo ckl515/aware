@@ -1,0 +1,36 @@
+{
+  "name": "aware-project",
+  "version": "1.0.0",
+  "description": "AWARE - Accessibility Web Analysis and Reporting Engine",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "vscode-extension"
+  ],
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "dev:backend": "cd backend && python3 start_server.py",
+    "test:python": "cd tests/python && python3 test_vscode.py",
+    "test:format": "cd tests/python && python3 test_format.py",
+    "test:suggest": "cd tests/python && python3 test_suggest_fixes.py",
+    "install:all": "npm install && cd frontend && npm install && cd ../vscode-extension && npm install",
+    "build:all": "npm run build:frontend"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ckl515/aware.git"
+  },
+  "keywords": [
+    "accessibility",
+    "web-analysis",
+    "browser-extension",
+    "vscode-extension",
+    "ai-powered"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

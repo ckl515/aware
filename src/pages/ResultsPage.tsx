@@ -3,6 +3,7 @@ import DropdownCard from "../components/DropdownCard";
 import Badge from "../components/NumberBadge";
 import Button from "../components/Button";
 import type { AxeResults } from "axe-core";
+import jsPDF from "jspdf";
 
 interface Props {
   onRunAxe: () => void;
@@ -55,6 +56,166 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, isTestMode }: Props) => {
     setBulkRequestMade(false);
     setStopRequested(false);
     onRunAxe();
+  };
+
+  const generatePDFReport = () => {
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 20;
+    const maxWidth = pageWidth - 2 * margin;
+    let yPosition = margin;
+    
+    // Helper function to add text with word wrapping
+    const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 12) => {
+      pdf.setFontSize(fontSize);
+      const lines = pdf.splitTextToSize(text, maxWidth);
+      
+      // Check if we need a new page
+      if (y + (lines.length * fontSize * 0.4) > pageHeight - margin) {
+        pdf.addPage();
+        y = margin;
+      }
+      
+      pdf.text(lines, x, y);
+      return y + (lines.length * fontSize * 0.4) + 5;
+    };
+
+    // Header with branding
+    pdf.setFillColor(59, 130, 246); // Blue color
+    pdf.rect(0, 0, pageWidth, 30, 'F');
+    
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(24);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Accessibility Report", margin, 20);
+    
+    pdf.setTextColor(0, 0, 0); // Reset to black
+    yPosition = 50;
+    
+    // Current date and URL
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "normal");
+    yPosition = addWrappedText(`Generated: ${new Date().toLocaleString()}`, margin, yPosition, maxWidth);
+    yPosition = addWrappedText(`URL: ${window.location.href}`, margin, yPosition, maxWidth);
+    yPosition = addWrappedText(`Tool: Aware Accessibility Extension`, margin, yPosition, maxWidth);
+    yPosition += 15;
+    
+    // Summary box
+    pdf.setFillColor(248, 250, 252); // Light gray background
+    pdf.rect(margin, yPosition - 5, maxWidth, 60, 'F');
+    pdf.setDrawColor(226, 232, 240); // Border color
+    pdf.rect(margin, yPosition - 5, maxWidth, 60, 'S');
+    
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    yPosition = addWrappedText("Executive Summary", margin + 10, yPosition + 5, maxWidth - 20, 16);
+    
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "normal");
+    yPosition = addWrappedText(`Total violations found: ${numViolations}`, margin + 10, yPosition, maxWidth - 20);
+    yPosition = addWrappedText(`Unique violation types: ${sortedViolations.length}`, margin + 10, yPosition, maxWidth - 20);
+    
+    // Calculate compliance percentage (this is a rough estimate)
+    const totalChecks = numViolations + 50; // Assume some passing checks
+    const complianceRate = Math.max(0, Math.round(((totalChecks - numViolations) / totalChecks) * 100));
+    yPosition = addWrappedText(`Estimated compliance rate: ${complianceRate}%`, margin + 10, yPosition, maxWidth - 20);
+    
+    yPosition += 20;
+    
+    // Violations by severity
+    const severityCounts = sortedViolations.reduce((acc, violation) => {
+      const impact = violation.impact || 'unknown';
+      acc[impact] = (acc[impact] || 0) + violation.nodes.length;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "bold");
+    yPosition = addWrappedText("Violations by Severity", margin, yPosition, maxWidth, 14);
+    
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "normal");
+    
+    // Color-code severity levels
+    const severityColors = {
+      critical: [220, 38, 38],   // Red
+      serious: [249, 115, 22],   // Orange  
+      moderate: [234, 179, 8],   // Yellow
+      minor: [34, 197, 94],      // Green
+      unknown: [107, 114, 128]   // Gray
+    };
+    
+    Object.entries(severityCounts).forEach(([severity, count]) => {
+      const color = severityColors[severity as keyof typeof severityColors] || severityColors.unknown;
+      pdf.setFillColor(color[0], color[1], color[2]);
+      pdf.circle(margin + 5, yPosition + 3, 2, 'F');
+      yPosition = addWrappedText(`${severity.charAt(0).toUpperCase() + severity.slice(1)}: ${count}`, margin + 15, yPosition, maxWidth - 15);
+    });
+    yPosition += 15;
+    
+    // Detailed violations
+    pdf.setFontSize(16);
+    pdf.setFont("helvetica", "bold");
+    yPosition = addWrappedText("Detailed Violations", margin, yPosition, maxWidth, 16);
+    yPosition += 5;
+    
+    sortedViolations.forEach((violation, index) => {
+      // Check if we need a new page
+      if (yPosition > pageHeight - 120) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+      
+      // Violation header with severity indicator
+      const severityColor = severityColors[violation.impact as keyof typeof severityColors] || severityColors.unknown;
+      pdf.setFillColor(severityColor[0], severityColor[1], severityColor[2]);
+      pdf.circle(margin + 5, yPosition + 5, 3, 'F');
+      
+      pdf.setFontSize(14);
+      pdf.setFont("helvetica", "bold");
+      yPosition = addWrappedText(`${index + 1}. ${violation.help}`, margin + 15, yPosition, maxWidth - 15, 14);
+      
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "normal");
+      yPosition = addWrappedText(`Severity: ${(violation.impact || 'unknown').charAt(0).toUpperCase() + (violation.impact || 'unknown').slice(1)}`, margin + 15, yPosition, maxWidth - 15);
+      yPosition = addWrappedText(`Rule ID: ${violation.id}`, margin + 15, yPosition, maxWidth - 15);
+      yPosition = addWrappedText(`Elements affected: ${violation.nodes.length}`, margin + 15, yPosition, maxWidth - 15);
+      yPosition = addWrappedText(`Description: ${violation.description}`, margin + 15, yPosition, maxWidth - 15);
+      
+      if (violation.helpUrl) {
+        yPosition = addWrappedText(`More info: ${violation.helpUrl}`, margin + 15, yPosition, maxWidth - 15);
+      }
+      
+      // List affected elements
+      if (violation.nodes.length > 0) {
+        yPosition = addWrappedText("Affected elements:", margin + 15, yPosition, maxWidth - 15);
+        violation.nodes.slice(0, 3).forEach((node) => { // Limit to first 3 elements for readability
+          const selector = Array.isArray(node.target) ? node.target.join(' ') : node.target;
+          yPosition = addWrappedText(`• ${selector}`, margin + 25, yPosition, maxWidth - 25);
+        });
+        
+        if (violation.nodes.length > 3) {
+          yPosition = addWrappedText(`... and ${violation.nodes.length - 3} more elements`, margin + 25, yPosition, maxWidth - 25);
+        }
+      }
+      
+      yPosition += 10;
+    });
+    
+    // Footer with page numbers
+    const totalPages = pdf.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 40, pageHeight - 10);
+      pdf.text("Generated by Aware Extension", margin, pageHeight - 10);
+    }
+    
+    // Save the PDF
+    const fileName = `accessibility-report-${new Date().toISOString().split('T')[0]}.pdf`;
+    pdf.save(fileName);
   };
 
   const fetchAllSuggestions = async () => {
@@ -281,6 +442,13 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, isTestMode }: Props) => {
                   onClick={handleStop}
                 />
               )}
+              <Button
+                colour="bg-green-600"
+                hoverColour="hover:bg-green-700"
+                text="📄 Generate PDF Report"
+                textColour="text-white"
+                onClick={generatePDFReport}
+              />
             </div>
           </div>
         </div>

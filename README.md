@@ -3,9 +3,9 @@
 AWARE is a web extension that enhances accessibility testing by automatically detecting issues using **axe-core** and providing developers with immediate, actionable code fixes—streamlining the entire process.
 
 ## Key features
-- Automatic Accessibility Issue Detection: AWARE identifies a comprehensive range of web accessibility issues according to Web Content Accessibility Guidelines (WCAG) laws.
-- Immediate, Context-Aware Code Fixes: AWARE gives developers instant, actionable fixes. When it finds a problem, it generates code snippets that they can simply copy and paste. 
-- Machine Learning for Alt-Text Generation: AWARE will integrate PyTorch’s powerful machine learning (ML) model to automatically generate contextually appropriate alternative text (alt-text) for images missing descriptions. 
+- **Automatic Accessibility Issue Detection:** AWARE identifies a comprehensive range of web accessibility issues according to Web Content Accessibility Guidelines (WCAG) laws.
+- **Immediate, Context-Aware Code Fixes:** AWARE gives developers instant, actionable fixes. When it finds a problem, it generates code snippets that they can simply copy and paste. 
+- **Machine Learning for Alt-Text Generation:** AWARE will integrate PyTorch’s powerful machine learning (ML) model to automatically generate contextually appropriate alternative text (alt-text) for images missing descriptions. 
 
 ## Deployment
 Follow these steps to build, deploy, and run the Chrome extension and its backend server.

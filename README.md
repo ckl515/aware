@@ -133,8 +133,6 @@ npm run dev:backend
 # Build extension after making changes  
 npm run build:frontend
 
-# Run tests
-npm run test:python
 ```
 
 ## Contributing

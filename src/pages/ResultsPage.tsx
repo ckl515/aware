@@ -39,12 +39,18 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
     setAiSuggestions(new Map());
     setLoadingSuggestions(new Set());
     setBulkRequestMade(false);
+    setStopRequested(false);
     onRunAxe();
   };
 
   const fetchAllSuggestions = async () => {
-    if (bulkRequestMade || !axeResults.violations.length || stopRequested) return;
+    // Prevent multiple calls - exit early if already requested
+    if (bulkRequestMade || !axeResults.violations.length || stopRequested) {
+      console.log('Bulk request already made or conditions not met, skipping...');
+      return;
+    }
     
+    console.log('Starting bulk AI suggestions request...');
     setBulkRequestMade(true);
     
     // Mark all violations as loading using sorted violations
@@ -155,9 +161,13 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
       }
     } catch (error) {
       console.error('Error fetching bulk AI suggestions:', error);
+      
+      // Reset bulk request flag on error so user can try again
+      setBulkRequestMade(false);
+      
       // Set error message for all suggestions
       allKeys.forEach(key => {
-        setAiSuggestions(prev => new Map(prev).set(key, 'Network error - Backend not available'));
+        setAiSuggestions(prev => new Map(prev).set(key, 'Network error - Backend not available. Click "Get AI Suggestions" to retry.'));
       });
     } finally {
       setLoadingSuggestions(new Set());
@@ -240,15 +250,14 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
                 textColour="text-white"
                 onClick={handleRerun}
               />
-              {!bulkRequestMade && (
-                <Button
-                  colour="bg-blue-600"
-                  hoverColour="hover:bg-blue-500"
-                  text="Get AI Suggestions"
-                  textColour="text-white"
-                  onClick={fetchAllSuggestions}
-                />
-              )}
+              <Button
+                colour="bg-blue-600"
+                hoverColour="hover:bg-blue-500"
+                text={bulkRequestMade ? "✓ AI Suggestions Loaded" : "Get AI Suggestions"}
+                textColour="text-white"
+                onClick={fetchAllSuggestions}
+                disabled={bulkRequestMade}
+              />
               {onStop && (
                 <Button
                   colour="bg-orange-600"

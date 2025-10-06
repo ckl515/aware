@@ -1,35 +1,36 @@
 {
-  "name": "aware-web-extension",
+  "name": "aware-project",
+  "version": "1.0.0",
+  "description": "AWARE - Accessibility Web Analysis and Reporting Engine",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "workspaces": [
+    "frontend",
+    "vscode-extension"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build && vite build --config vite.content.config.ts",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "dev:backend": "cd backend && python3 start_server.py",
+    "test:python": "cd tests/python && python3 test_vscode.py",
+    "test:format": "cd tests/python && python3 test_format.py",
+    "test:suggest": "cd tests/python && python3 test_suggest_fixes.py",
+    "install:all": "npm install && cd frontend && npm install && cd ../vscode-extension && npm install",
+    "build:all": "npm run build:frontend"
   },
-  "dependencies": {
-    "@tailwindcss/vite": "^4.1.12",
-    "axe-core": "^4.10.3",
-    "bootstrap": "^5.3.8",
-    "jspdf": "^3.0.3",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "tailwindcss": "^4.1.12"
+  "engines": {
+    "node": ">=16.0.0"
   },
-  "devDependencies": {
-    "@eslint/js": "^9.33.0",
-    "@types/chrome": "^0.1.5",
-    "@types/react": "^19.1.10",
-    "@types/react-dom": "^19.1.7",
-    "@vitejs/plugin-react": "^5.0.0",
-    "eslint": "^9.33.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.3.0",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.39.1",
-    "vite": "^7.1.2"
-  }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ckl515/aware.git"
+  },
+  "keywords": [
+    "accessibility",
+    "web-analysis",
+    "browser-extension",
+    "vscode-extension",
+    "ai-powered"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }

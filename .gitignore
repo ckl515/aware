@@ -41,3 +41,5 @@ test_vscode.py
 badWebsiteReact.html
 test_suggest_fixes.py
 badReactTest.html
+test_structure.py
+/tests

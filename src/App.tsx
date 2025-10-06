@@ -257,10 +257,6 @@ function App() {
         onRunAxe={testMode ? () => handleRunAxeTestMode(setAxeResults) : handleRunAxe} 
         axeResults={axeResults}
         onBack={() => setAxeResults(null)}
-        onStop={() => {
-          setAxeResults(null);
-          setTestMode(false);
-        }}
         isTestMode={testMode}
       />
     );

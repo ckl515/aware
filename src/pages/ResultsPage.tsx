@@ -8,11 +8,10 @@ interface Props {
   onRunAxe: () => void;
   axeResults: AxeResults;
   onBack?: () => void;
-  onStop?: () => void;
   isTestMode?: boolean;
 }
 
-const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props) => {
+const ResultsPage = ({ onRunAxe, axeResults, onBack, isTestMode }: Props) => {
   const [aiSuggestions, setAiSuggestions] = useState<Map<string, string>>(new Map());
   const [loadingSuggestions, setLoadingSuggestions] = useState<Set<string>>(new Set());
   const [bulkRequestMade, setBulkRequestMade] = useState(false);
@@ -29,9 +28,24 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
   const handleStop = () => {
     setStopRequested(true);
     setLoadingSuggestions(new Set());
-    if (onStop) {
-      onStop();
-    }
+    
+    // Set stopped message for all suggestions that were loading
+    const stoppedMessage = "AI suggestions generation stopped";
+    setAiSuggestions(prev => {
+      const newSuggestions = new Map(prev);
+      // Update any suggestions that don't have content yet
+      sortedViolations.forEach(violation => {
+        violation.nodes.forEach(node => {
+          const suggestionKey = `${violation.id}-${node.target}`;
+          if (!newSuggestions.has(suggestionKey) || newSuggestions.get(suggestionKey)?.includes("Loading")) {
+            newSuggestions.set(suggestionKey, stoppedMessage);
+          }
+        });
+      });
+      return newSuggestions;
+    });
+    
+    // Don't call onStop to avoid changing screens
   };
 
   const handleRerun = () => {
@@ -258,7 +272,7 @@ const ResultsPage = ({ onRunAxe, axeResults, onBack, onStop, isTestMode }: Props
                 onClick={fetchAllSuggestions}
                 disabled={bulkRequestMade}
               />
-              {onStop && (
+              {loadingSuggestions.size > 0 && !stopRequested && (
                 <Button
                   colour="bg-orange-600"
                   hoverColour="hover:bg-orange-500"
